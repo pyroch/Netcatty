@@ -2048,6 +2048,13 @@ if [ -n "$login" ]; then
   pid=$(find_active_shell "$login")
   [ -n "$pid" ] || pid="$login"
   cwd=$(readlink /proc/$pid/cwd 2>/dev/null)
+  # /proc/<pid>/cwd is only readable for same-uid processes (ptrace perms), so
+  # this unprivileged exec channel cannot read a su'd / sudo'd shell owned by
+  # another user. Fall back to the same-uid login shell's cwd before giving up
+  # to the home directory (#1065 review).
+  if [ -z "$cwd" ] && [ "$pid" != "$login" ]; then
+    cwd=$(readlink /proc/$login/cwd 2>/dev/null)
+  fi
   [ -n "$cwd" ] && printf '%s\\n' "$cwd" && exit 0
 fi
 emit_home() {
