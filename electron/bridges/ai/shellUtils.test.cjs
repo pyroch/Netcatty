@@ -211,6 +211,27 @@ test("looksLikeIdleAutoLogout ignores the banner when it is not at the tail", ()
   assert.equal(looksLikeIdleAutoLogout(tail), false);
 });
 
+test("looksLikeIdleAutoLogout ignores auto-logout in command output before an intentional exit", () => {
+  // Investigating TMOUT: the user greps the profile (output mentions
+  // "auto-logout"), reads it, then exits on purpose. The banner is not the
+  // final line, so the tab must still auto-close. Guards against matching an
+  // unanchored substring anywhere in the recent output.
+  const tail =
+    "root@h:~# grep -i auto-logout /etc/profile\r\n" +
+    "# bash TMOUT auto-logout setting\r\nTMOUT=300\r\n" +
+    "root@h:~# exit\r\nlogout\r\n";
+  assert.equal(looksLikeIdleAutoLogout(tail), false);
+});
+
+test("looksLikeIdleAutoLogout matches the real-server banner shape (prompt + banner on one line)", () => {
+  // The banner can share a line with the trailing prompt after ANSI/control
+  // bytes are stripped (observed over real SSH); anchoring on the line end
+  // must still match.
+  const tail =
+    "\x1b]0;root@VM:~\x07root@VM:~# \x1b[?2004l\x07timed out waiting for input: auto-logout\n";
+  assert.equal(looksLikeIdleAutoLogout(tail), true);
+});
+
 test("looksLikeIdleAutoLogout returns false for empty / non-string input", () => {
   assert.equal(looksLikeIdleAutoLogout(""), false);
   assert.equal(looksLikeIdleAutoLogout(undefined), false);
