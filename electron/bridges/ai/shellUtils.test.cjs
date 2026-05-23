@@ -7,6 +7,7 @@ const {
   getFreshIdlePrompt,
   isDefaultPowerShellPromptLine,
   isPlausibleCliVersionOutput,
+  looksLikeIdleAutoLogout,
   prepareCommandForSpawn,
   trackSessionIdlePrompt,
 } = require("./shellUtils.cjs");
@@ -174,4 +175,44 @@ test("getFreshIdlePrompt and trackSessionIdlePrompt round-trip through a real PT
   // The freshness check rescues us: the visible tail no longer ends
   // with the cached PS line, so downstream wrapper selection sees "".
   assert.equal(getFreshIdlePrompt(session), "");
+});
+
+test("looksLikeIdleAutoLogout detects the bash TMOUT banner at the tail", () => {
+  // bash prints this immediately before a TMOUT auto-logout exit. The exit
+  // itself is a clean shell exit (code 0, no signal), so the banner is the
+  // only reliable discriminator from a user-typed `exit` (#1062 / #977).
+  assert.equal(
+    looksLikeIdleAutoLogout("user@host:~$ \x07timed out waiting for input: auto-logout\r\n"),
+    true,
+  );
+});
+
+test("looksLikeIdleAutoLogout detects the csh/tcsh auto-logout banner", () => {
+  assert.equal(looksLikeIdleAutoLogout("\r\nauto-logout\r\n"), true);
+});
+
+test("looksLikeIdleAutoLogout sees through ANSI escapes around the banner", () => {
+  assert.equal(
+    looksLikeIdleAutoLogout("\x1b[0m\x1b[33mtimed out waiting for input: auto-logout\x1b[0m\r\n"),
+    true,
+  );
+});
+
+test("looksLikeIdleAutoLogout ignores a plain (non-timeout) logout", () => {
+  // A normal login-shell exit prints "logout" — without the "auto-" prefix —
+  // and must still auto-close the tab.
+  assert.equal(looksLikeIdleAutoLogout("user@host:~$ logout\r\n"), false);
+});
+
+test("looksLikeIdleAutoLogout ignores the banner when it is not at the tail", () => {
+  // "auto-logout" scrolled past long ago; the user then ran more commands and
+  // exited normally. Only the tail end is inspected, so this is not a timeout.
+  const tail = "auto-logout\n" + "x".repeat(400) + "\nuser@host:~$ logout\r\n";
+  assert.equal(looksLikeIdleAutoLogout(tail), false);
+});
+
+test("looksLikeIdleAutoLogout returns false for empty / non-string input", () => {
+  assert.equal(looksLikeIdleAutoLogout(""), false);
+  assert.equal(looksLikeIdleAutoLogout(undefined), false);
+  assert.equal(looksLikeIdleAutoLogout(null), false);
 });

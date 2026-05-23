@@ -58,6 +58,24 @@ function extractTrailingIdlePrompt(output) {
   return "";
 }
 
+// bash and csh/tcsh print a banner to the terminal right before exiting due to
+// the shell's TMOUT idle-timeout setting ("timed out waiting for input:
+// auto-logout" / "auto-logout"). That exit is a clean shell exit — numeric
+// code, no signal — so it is indistinguishable from a user-typed `exit` by
+// exit code alone (verified: bash auto-logout exits 0). The banner is the only
+// reliable discriminator, letting the SSH bridge keep the tab open for
+// reconnect instead of auto-closing it (#1062, regression of #977).
+const IDLE_AUTO_LOGOUT_PATTERN = /timed out waiting for input|auto-?logout/i;
+
+function looksLikeIdleAutoLogout(outputTail) {
+  if (typeof outputTail !== "string" || !outputTail) return false;
+  // The banner is the last thing the shell prints before exiting, so only
+  // inspect the tail end — unrelated earlier output (e.g. a file that happened
+  // to contain "auto-logout") must not be mistaken for a timeout.
+  const end = stripAnsi(outputTail).slice(-256);
+  return IDLE_AUTO_LOGOUT_PATTERN.test(end);
+}
+
 function trackSessionIdlePrompt(session, chunk) {
   if (!session || typeof chunk !== "string" || !chunk) return "";
 
@@ -399,6 +417,7 @@ module.exports = {
   getFreshIdlePrompt,
   isDefaultPowerShellPromptLine,
   trackSessionIdlePrompt,
+  looksLikeIdleAutoLogout,
   isLocalhostHostname,
   extractFirstNonLocalhostUrl,
   normalizeCliPathForPlatform,
