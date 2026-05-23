@@ -22,28 +22,31 @@ function getElectron() {
 
 /**
  * Resolve per-file overwrite choices into an upload plan. Pure (no I/O):
- * `resolveDecision(name)` is awaited only for files in `existingList`, in order;
- * `{ applyToRest: true }` reuses that action for the remaining conflicts.
+ * `resolveDecision(name)` is awaited only for files in `existingList`, in input
+ * order; `{ applyToRest: true }` reuses that action for the remaining conflicts.
+ * Returns indices into the original `names` array so callers preserve per-file
+ * identity even when two files share a basename.
  * Actions: 'overwrite' (rm remote then send), 'skip' (don't send), 'cancel' (abort all).
  */
 async function buildUploadPlan(names, existingList, resolveDecision) {
   const existing = new Set(existingList);
-  const filesToOffer = [];
-  const filesToRemove = [];
+  const offerIndices = [];
+  const removeIndices = [];
   let bulkAction = null;
-  for (const name of names) {
-    if (!existing.has(name)) { filesToOffer.push(name); continue; }
+  for (let idx = 0; idx < names.length; idx++) {
+    const name = names[idx];
+    if (!existing.has(name)) { offerIndices.push(idx); continue; }
     let action = bulkAction;
     if (!action) {
       const decision = (await resolveDecision(name)) || { action: "skip" };
       action = decision.action;
       if (decision.applyToRest && action !== "cancel") bulkAction = action;
     }
-    if (action === "cancel") return { filesToOffer: [], filesToRemove: [], aborted: true };
-    if (action === "overwrite") { filesToRemove.push(name); filesToOffer.push(name); }
+    if (action === "cancel") return { offerIndices: [], removeIndices: [], aborted: true };
+    if (action === "overwrite") { removeIndices.push(idx); offerIndices.push(idx); }
     // 'skip' → omit from both
   }
-  return { filesToOffer, filesToRemove, aborted: false };
+  return { offerIndices, removeIndices, aborted: false };
 }
 
 /**
@@ -554,7 +557,7 @@ async function handleUpload(zsession, opts) {
 
   // Conflict handling (SSH only — callbacks absent on local/telnet/serial).
   // On any failure we fall back to today's behavior (rz silently skips).
-  let plan = { filesToOffer: allNames, filesToRemove: [], aborted: false };
+  let plan = { offerIndices: allNames.map((_, i) => i), removeIndices: [], aborted: false };
   if (opts.probeReceiveConflicts && opts.requestOverwriteDecision) {
     try {
       const probe = await opts.probeReceiveConflicts(allNames);
@@ -565,9 +568,9 @@ async function handleUpload(zsession, opts) {
           abortRemoteProcess(opts.writeToRemote);
           throw new Error("Transfer cancelled");
         }
-        if (plan.filesToRemove.length && opts.removeRemoteFiles) {
+        if (plan.removeIndices.length && opts.removeRemoteFiles) {
           const base = probe.dir.replace(/\/+$/, "");
-          const targets = plan.filesToRemove.map((n) => `${base}/${n}`);
+          const targets = [...new Set(plan.removeIndices.map((i) => `${base}/${allNames[i]}`))];
           try {
             await opts.removeRemoteFiles(targets);
           } catch (err) {
@@ -581,10 +584,7 @@ async function handleUpload(zsession, opts) {
     }
   }
 
-  const offerSet = new Set(plan.filesToOffer);
-  const offers = filePaths
-    .map((filePath, i) => ({ filePath, stat: fileStats[i], name: allNames[i] }))
-    .filter((o) => offerSet.has(o.name));
+  const offers = plan.offerIndices.map((i) => ({ filePath: filePaths[i], stat: fileStats[i], name: allNames[i] }));
 
   for (let i = 0; i < offers.length; i++) {
     const { filePath, stat, name } = offers[i];
