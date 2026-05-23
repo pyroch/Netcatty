@@ -2012,10 +2012,19 @@ async function getSessionPwd(event, payload) {
     // so sh keeps the same PID and $PPID = sshd. Starting another shell
     // without exec would make $PPID point at the intermediate shell instead.
     const posixScript = `SELF=$$
-# Find an interactive shell child of this exec channel's sshd ($PPID).
+# Find the interactive shell child of this exec channel's sshd ($PPID).
+# Prefer the one attached to a controlling tty (the user's shell): probe exec
+# channels like this one have no tty ("?"), and ps output is unsorted, so
+# without the tty preference a concurrent probe's shell could be picked when
+# several exist under the same sshd (#1065 review). Falls back to any shell
+# child if none has a tty.
 find_login_shell() {
-  ps -e -o pid=,ppid=,comm= 2>/dev/null | awk -v pp="$1" -v self="$SELF" '
-    $1 != self && $2 == pp && $3 ~ /^-?(ba|z|fi|k|da|a)?sh$/ { print $1; exit }
+  ps -e -o pid=,ppid=,tty=,comm= 2>/dev/null | awk -v pp="$1" -v self="$SELF" '
+    $1 != self && $2 == pp && $4 ~ /^-?(ba|z|fi|k|da|a)?sh$/ {
+      if ($3 != "?") { print $1; found=1; exit }
+      if (any == "") any=$1
+    }
+    END { if (!found && any != "") print any }
   '
 }
 # From the login shell, pick the DEEPEST foreground shell in its process
