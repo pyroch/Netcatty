@@ -365,6 +365,8 @@ function resolveLangFromCharset(charset) {
 
 const { safeSend } = require("./ipcUtils.cjs");
 
+const zmodemOverwritePending = new Map(); // requestId -> (decision) => void
+
 /**
  * Initialize the SSH bridge with dependencies
  */
@@ -1335,6 +1337,22 @@ async function startSSHSession(event, options) {
               },
               removeRemoteFiles(paths) {
                 return removeRemoteFiles(sessions.get(sessionId), paths);
+              },
+              requestOverwriteDecision(filename) {
+                return new Promise((resolve) => {
+                  const requestId = randomUUID();
+                  const timer = setTimeout(() => {
+                    zmodemOverwritePending.delete(requestId);
+                    resolve({ action: "skip", applyToRest: false });
+                  }, 120000);
+                  zmodemOverwritePending.set(requestId, (payload) => {
+                    clearTimeout(timer);
+                    resolve({ action: payload.action, applyToRest: !!payload.applyToRest });
+                  });
+                  safeSend(event.sender, "netcatty:zmodem:overwrite-request", {
+                    sessionId, requestId, filename,
+                  });
+                });
               },
               getWebContents() {
                 return event.sender;
@@ -2726,6 +2744,10 @@ function registerHandlers(ipcMain) {
       // ~/.ssh doesn't exist
     }
     return keys;
+  });
+  ipcMain.on("netcatty:zmodem:overwrite-response", (_event, payload) => {
+    const resolve = zmodemOverwritePending.get(payload?.requestId);
+    if (resolve) { zmodemOverwritePending.delete(payload.requestId); resolve(payload); }
   });
   // Register the shared keyboard-interactive response handler
   keyboardInteractiveHandler.registerHandler(ipcMain);
