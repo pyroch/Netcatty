@@ -21,6 +21,32 @@ function getElectron() {
 }
 
 /**
+ * Resolve per-file overwrite choices into an upload plan. Pure (no I/O):
+ * `resolveDecision(name)` is awaited only for files in `existingList`, in order;
+ * `{ applyToRest: true }` reuses that action for the remaining conflicts.
+ * Actions: 'overwrite' (rm remote then send), 'skip' (don't send), 'cancel' (abort all).
+ */
+async function buildUploadPlan(names, existingList, resolveDecision) {
+  const existing = new Set(existingList);
+  const filesToOffer = [];
+  const filesToRemove = [];
+  let bulkAction = null;
+  for (const name of names) {
+    if (!existing.has(name)) { filesToOffer.push(name); continue; }
+    let action = bulkAction;
+    if (!action) {
+      const decision = (await resolveDecision(name)) || { action: "skip" };
+      action = decision.action;
+      if (decision.applyToRest && action !== "cancel") bulkAction = action;
+    }
+    if (action === "cancel") return { filesToOffer: [], filesToRemove: [], aborted: true };
+    if (action === "overwrite") { filesToRemove.push(name); filesToOffer.push(name); }
+    // 'skip' → omit from both
+  }
+  return { filesToOffer, filesToRemove, aborted: false };
+}
+
+/**
  * Create a ZMODEM sentry that wraps a session's data stream.
  *
  * All raw data from the PTY / SSH stream / socket should be fed into
@@ -791,4 +817,4 @@ function safeSend(contents, channel, data) {
   }
 }
 
-module.exports = { createZmodemSentry };
+module.exports = { createZmodemSentry, buildUploadPlan };
