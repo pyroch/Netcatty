@@ -2180,7 +2180,7 @@ printf 'DIR\\t%s\\n' "$dir"
 cd "$dir" 2>/dev/null || exit 0
 for n in "$@"; do
   [ -e "$n" ] || continue
-  m=$(stat -c %a "$n" 2>/dev/null || stat -f %Lp "$n" 2>/dev/null)
+  m=$(stat -c %a -- "$n" 2>/dev/null || stat -f %Lp -- "$n" 2>/dev/null)
   printf 'EXIST\\t%s\\t%s\\n' "$n" "$m"
 done`;
     const argv = names.map((n) => quoteShellArg(n)).join(" ");
