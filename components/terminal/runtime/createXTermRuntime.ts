@@ -664,6 +664,7 @@ export const createXTermRuntime = (ctx: CreateXTermRuntimeContext): XTermRuntime
     const wordJumpSequence = optionArrowWordJumpSequence(
       e,
       ctx.terminalSettingsRef.current?.optionArrowWordJump ?? false,
+      isMacPlatform(),
     );
     if (wordJumpSequence) {
       const id = ctx.sessionRef.current;
