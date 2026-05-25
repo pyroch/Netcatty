@@ -65,6 +65,7 @@ export const ThemeList: React.FC<ThemeListProps> = ({ selectedThemeId, onSelect,
     const customThemes = useCustomThemes();
     const deletedSelectedTheme = useMemo(
         () => (selectedThemeId
+            && selectedThemeId !== TERMINAL_THEME_AUTO
             && !isUiMatchTerminalThemeId(selectedThemeId)
             && !TERMINAL_THEMES.some((theme) => theme.id === selectedThemeId)
             && !customThemes.some((theme) => theme.id === selectedThemeId)
