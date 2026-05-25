@@ -1573,18 +1573,7 @@ const TerminalComponent: React.FC<TerminalProps> = ({
     const id = sessionRef.current;
     if (!term || !id) return;
 
-    const normalized = normalizeLineEndings(command);
-
-    // Broadcast the normalized (un-wrapped) data so each target session applies
-    // its own bracketed-paste state — mirrors the snippet shortkey path. Without
-    // this, accepting a snippet from autocomplete in broadcast mode clears peer
-    // input (the clear keystrokes already go through the broadcast-aware path)
-    // but never sends the command, diverging peers from the active session.
-    if (isBroadcastEnabledRef.current && onBroadcastInputRef.current) {
-      onBroadcastInputRef.current(noAutoRun ? normalized : `${normalized}\r`, sessionId);
-    }
-
-    let data = normalized;
+    let data = normalizeLineEndings(command);
     const isMultiLine = data.includes('\n');
     // Wrap in bracketed paste BEFORE appending \r so the Enter is sent
     // outside the paste markers — otherwise shells treat it as pasted text
@@ -1593,6 +1582,17 @@ const TerminalComponent: React.FC<TerminalProps> = ({
       data = wrapBracketedPaste(data);
     }
     if (!noAutoRun) data = `${data}\r`;
+
+    // Broadcast the exact bytes the active session receives so peers mirror it,
+    // including the bracketed-paste wrapping and the auto-run \r. Broadcasting
+    // the raw (un-wrapped) form would let a multi-line noAutoRun snippet run
+    // line-by-line on peers, since handleBroadcastInput writes bytes directly
+    // without re-wrapping. Without broadcasting at all, accepting a snippet in
+    // broadcast mode would clear peer input (the clear keystrokes already go
+    // through the broadcast-aware path) but never send the command.
+    if (isBroadcastEnabledRef.current && onBroadcastInputRef.current) {
+      onBroadcastInputRef.current(data, sessionId);
+    }
 
     terminalBackend.writeToSession(id, data);
     scrollToBottomAfterProgrammaticInput(data);
