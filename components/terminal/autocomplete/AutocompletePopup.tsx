@@ -482,7 +482,22 @@ const AutocompletePopup: React.FC<AutocompletePopupProps> = ({
             </span>
           </div>
           <div style={{ fontSize: "12px", color: dimTextColor, lineHeight: "1.5", wordBreak: "break-word" }}>
-            {detailItem.description}
+            {detailItem.source === "snippet" ? (
+              <pre
+                style={{
+                  margin: 0,
+                  whiteSpace: "pre-wrap",
+                  wordBreak: "break-word",
+                  fontFamily: "var(--terminal-font, monospace)",
+                  fontSize: "11px",
+                  lineHeight: 1.4,
+                }}
+              >
+                {detailItem.description}
+              </pre>
+            ) : (
+              detailItem.description
+            )}
           </div>
         </div>
       )}

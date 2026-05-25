@@ -2381,6 +2381,8 @@ const TerminalComponent: React.FC<TerminalProps> = ({
             protocol={host.protocol}
             getCwd={() => terminalCwdTracker.getRendererCwd() ?? knownCwdRef.current}
             onAcceptText={(text) => autocompleteAcceptTextRef.current?.(text)}
+            snippets={snippets}
+            onAcceptSnippet={(snippet) => executeSnippetCommand(snippet.command, snippet.noAutoRun)}
             visible={isVisible}
             themeColors={effectiveTheme.colors}
             containerRef={containerRef}
