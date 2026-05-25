@@ -30,9 +30,10 @@ import {
   getPathSuggestions,
   resolvePathComponents,
 } from "./remotePathCompleter";
+import type { Snippet } from "../../../domain/models";
 
 /** Source indicator for where a suggestion came from */
-export type SuggestionSource = "history" | "command" | "subcommand" | "option" | "arg" | "path";
+export type SuggestionSource = "history" | "command" | "subcommand" | "option" | "arg" | "path" | "snippet";
 
 export interface CompletionSuggestion {
   /** The text to insert */
@@ -49,6 +50,8 @@ export interface CompletionSuggestion {
   frequency?: number;
   /** For path suggestions: file type */
   fileType?: "file" | "directory" | "symlink";
+  /** For snippet suggestions: the source snippet (used by the accept path). */
+  snippet?: Snippet;
 }
 
 export interface CompletionContext {
