@@ -65,3 +65,34 @@ test("ignores empty appends", () => {
   buf.append("b");
   assert.equal(buf.toString(), "ab");
 });
+
+test("keeps the segment count bounded across many tiny appends", () => {
+  // The whole point of the rewrite: trimming must not walk one array entry
+  // per append. With a blockSize of 10 and a 100-char cap, the buffer should
+  // never hold more than ~ceil(cap/blockSize)+1 segments no matter how many
+  // single-char appends arrive once it's at capacity.
+  const maxChars = 100;
+  const blockSize = 10;
+  const buf = createConnectionLogBuffer(maxChars, blockSize);
+  let naive = "";
+  for (let i = 0; i < 10000; i++) {
+    buf.append("x");
+    naive += "x";
+  }
+  assert.ok(
+    buf.segmentCount() <= Math.ceil(maxChars / blockSize) + 1,
+    `segmentCount ${buf.segmentCount()} exceeded the bound`,
+  );
+  assert.equal(buf.toString(), naive.slice(-maxChars));
+});
+
+test("seals and trims whole blocks with a small blockSize", () => {
+  const buf = createConnectionLogBuffer(10, 4);
+  const chunks = ["abcd", "efgh", "ijkl"]; // 12 chars total
+  let naive = "";
+  for (const c of chunks) {
+    buf.append(c);
+    naive += c;
+  }
+  assert.equal(buf.toString(), naive.slice(-10)); // "cdefghijkl"
+});
