@@ -399,6 +399,10 @@ export default function SettingsTerminalTab(props: {
     });
     return TERMINAL_THEMES.find(t => t.id === id)
       || customThemes.find(t => t.id === id)
+      // Mirror the runtime fallback in useSettingsState.currentTerminalTheme:
+      // a deleted per-mode override falls back to the manual theme, not [0].
+      || TERMINAL_THEMES.find(t => t.id === terminalThemeId)
+      || customThemes.find(t => t.id === terminalThemeId)
       || TERMINAL_THEMES[0];
   }, [terminalThemeDarkId, terminalThemeLightId, lightUiThemeId, darkUiThemeId, terminalThemeId, customThemes]);
 
@@ -410,6 +414,10 @@ export default function SettingsTerminalTab(props: {
     });
     return TERMINAL_THEMES.find(t => t.id === id)
       || customThemes.find(t => t.id === id)
+      // Mirror the runtime fallback in useSettingsState.currentTerminalTheme:
+      // a deleted per-mode override falls back to the manual theme, not [0].
+      || TERMINAL_THEMES.find(t => t.id === terminalThemeId)
+      || customThemes.find(t => t.id === terminalThemeId)
       || TERMINAL_THEMES[0];
   }, [terminalThemeDarkId, terminalThemeLightId, lightUiThemeId, darkUiThemeId, terminalThemeId, customThemes]);
 
