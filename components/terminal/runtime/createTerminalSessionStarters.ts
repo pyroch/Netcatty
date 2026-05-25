@@ -416,6 +416,23 @@ const attachSessionToTerminal = (
   });
 };
 
+const STARTUP_COMMAND_DEFAULT_DELAY_MS = 600;
+const STARTUP_COMMAND_MAX_DELAY_MS = 10000;
+
+/** Split a (possibly multi-line) startup command into trimmed, non-empty lines. */
+export function splitStartupCommandLines(commandText: string): string[] {
+  return String(commandText || "")
+    .split("\n")
+    .map((line) => line.trim())
+    .filter((line) => line.length > 0);
+}
+
+/** Clamp a configured startup-command delay; fall back to the default when unset/invalid. */
+export function normalizeStartupCommandDelay(raw: number | undefined): number {
+  const value = typeof raw === "number" && Number.isFinite(raw) ? raw : STARTUP_COMMAND_DEFAULT_DELAY_MS;
+  return Math.max(0, Math.min(STARTUP_COMMAND_MAX_DELAY_MS, value));
+}
+
 const scheduleStartupCommand = (
   ctx: TerminalSessionStartersContext,
   term: XTerm,

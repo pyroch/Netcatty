@@ -1,7 +1,12 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { createTerminalSessionStarters, getMissingChainHostIds } from "./createTerminalSessionStarters";
+import {
+  createTerminalSessionStarters,
+  getMissingChainHostIds,
+  splitStartupCommandLines,
+  normalizeStartupCommandDelay,
+} from "./createTerminalSessionStarters";
 import { createPromptLineBreakState } from "./promptLineBreak";
 import { pasteTextIntoTerminal } from "./terminalUserPaste";
 
@@ -2622,4 +2627,24 @@ test("startTelnet rejects configured proxies instead of connecting directly", as
 
   assert.equal(started, false);
   assert.match(error, /Telnet does not support proxy/);
+});
+
+test("splitStartupCommandLines splits on newlines, trims, drops blanks", () => {
+  assert.deepEqual(splitStartupCommandLines("sudo -i\nalias dc=\"docker compose\""), [
+    "sudo -i",
+    'alias dc="docker compose"',
+  ]);
+  assert.deepEqual(splitStartupCommandLines("  cd /app  "), ["cd /app"]);
+  assert.deepEqual(splitStartupCommandLines("a\n\n  \nb"), ["a", "b"]);
+  assert.deepEqual(splitStartupCommandLines(""), []);
+  assert.deepEqual(splitStartupCommandLines("   "), []);
+});
+
+test("normalizeStartupCommandDelay defaults and clamps", () => {
+  assert.equal(normalizeStartupCommandDelay(undefined), 600);
+  assert.equal(normalizeStartupCommandDelay(Number.NaN), 600);
+  assert.equal(normalizeStartupCommandDelay(0), 0);
+  assert.equal(normalizeStartupCommandDelay(1500), 1500);
+  assert.equal(normalizeStartupCommandDelay(-50), 0);
+  assert.equal(normalizeStartupCommandDelay(999999), 10000);
 });
