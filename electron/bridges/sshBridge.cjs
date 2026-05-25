@@ -1372,10 +1372,8 @@ async function startSSHSession(event, options) {
             });
 
             stream.on("close", () => {
-              // Always flush buffered data regardless of session state
-              if (flushTimeout) {
-                clearTimeout(flushTimeout);
-              }
+              // Always flush buffered data regardless of session state.
+              // flushBuffer() cancels any pending scheduled flush internally.
               flushBuffer();
               sessionLogStreamManager.stopStream(sessionId, logStreamToken);
               if (detachX11Forwarding) {
