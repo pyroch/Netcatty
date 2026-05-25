@@ -1573,7 +1573,18 @@ const TerminalComponent: React.FC<TerminalProps> = ({
     const id = sessionRef.current;
     if (!term || !id) return;
 
-    let data = normalizeLineEndings(command);
+    const normalized = normalizeLineEndings(command);
+
+    // Broadcast the normalized (un-wrapped) data so each target session applies
+    // its own bracketed-paste state — mirrors the snippet shortkey path. Without
+    // this, accepting a snippet from autocomplete in broadcast mode clears peer
+    // input (the clear keystrokes already go through the broadcast-aware path)
+    // but never sends the command, diverging peers from the active session.
+    if (isBroadcastEnabledRef.current && onBroadcastInputRef.current) {
+      onBroadcastInputRef.current(noAutoRun ? normalized : `${normalized}\r`, sessionId);
+    }
+
+    let data = normalized;
     const isMultiLine = data.includes('\n');
     // Wrap in bracketed paste BEFORE appending \r so the Enter is sent
     // outside the paste markers — otherwise shells treat it as pasted text
@@ -1586,7 +1597,7 @@ const TerminalComponent: React.FC<TerminalProps> = ({
     terminalBackend.writeToSession(id, data);
     scrollToBottomAfterProgrammaticInput(data);
     term.focus();
-  }, [scrollToBottomAfterProgrammaticInput, terminalBackend]);
+  }, [scrollToBottomAfterProgrammaticInput, terminalBackend, sessionId]);
 
   // Only register the snippet executor once the terminal session is ready.
   // Before that, TerminalLayer falls back to raw writeToSession which is the
