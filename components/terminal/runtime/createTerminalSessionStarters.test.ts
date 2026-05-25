@@ -2733,13 +2733,15 @@ test("startTelnet rejects configured proxies instead of connecting directly", as
   assert.match(error, /Telnet does not support proxy/);
 });
 
-test("splitStartupCommandLines splits on newlines, trims, drops blanks", () => {
+test("splitStartupCommandLines drops blank lines but keeps content verbatim", () => {
   assert.deepEqual(splitStartupCommandLines("sudo -i\nalias dc=\"docker compose\""), [
     "sudo -i",
     'alias dc="docker compose"',
   ]);
-  assert.deepEqual(splitStartupCommandLines("  cd /app  "), ["cd /app"]);
+  // Single-line content is preserved verbatim (leading/trailing spaces kept).
+  assert.deepEqual(splitStartupCommandLines("  cd /app  "), ["  cd /app  "]);
   assert.deepEqual(splitStartupCommandLines("a\n\n  \nb"), ["a", "b"]);
+  assert.deepEqual(splitStartupCommandLines("echo hi\r\nwhoami"), ["echo hi", "whoami"]);
   assert.deepEqual(splitStartupCommandLines(""), []);
   assert.deepEqual(splitStartupCommandLines("   "), []);
 });

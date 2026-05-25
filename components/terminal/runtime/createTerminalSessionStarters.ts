@@ -419,12 +419,18 @@ const attachSessionToTerminal = (
 const STARTUP_COMMAND_DEFAULT_DELAY_MS = 600;
 const STARTUP_COMMAND_MAX_DELAY_MS = 10000;
 
-/** Split a (possibly multi-line) startup command into trimmed, non-empty lines. */
+/**
+ * Split a (possibly multi-line) startup command into non-empty lines, dropping
+ * blank/whitespace-only lines but preserving each line's content verbatim — so
+ * a single-line command stays byte-identical to what the user typed (e.g. a
+ * leading space for `HISTCONTROL=ignorespace` is kept). Trailing `\r` from
+ * CRLF input is normalized away.
+ */
 export function splitStartupCommandLines(commandText: string): string[] {
   return String(commandText || "")
     .split("\n")
-    .map((line) => line.trim())
-    .filter((line) => line.length > 0);
+    .map((line) => line.replace(/\r$/, ""))
+    .filter((line) => line.trim().length > 0);
 }
 
 /** Clamp a configured startup-command delay; fall back to the default when unset/invalid. */
