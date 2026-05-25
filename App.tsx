@@ -1198,6 +1198,7 @@ function App({ settings }: { settings: SettingsState }) {
   addConnectionLogRef.current = addConnectionLog;
 
   const toggleScriptsSidePanelRef = useRef<(() => void) | null>(null);
+  const toggleSidePanelRef = useRef<(() => void) | null>(null);
   // Populated below so the hotkey dispatcher can open the Settings window
   // even though `handleOpenSettings` is declared further down in the file.
   const handleOpenSettingsRef = useRef<() => void>(() => {});
@@ -1472,6 +1473,9 @@ function App({ settings }: { settings: SettingsState }) {
           setActiveTabId('vault');
           setNavigateToSection('snippets');
         }
+        break;
+      case 'toggleSidePanel':
+        toggleSidePanelRef.current?.();
         break;
       case 'broadcast': {
         // Toggle broadcast mode for the active workspace
@@ -2140,6 +2144,7 @@ function App({ settings }: { settings: SettingsState }) {
           sessionLogsDir={sessionLogsDir}
           sessionLogsFormat={sessionLogsFormat}
           toggleScriptsSidePanelRef={toggleScriptsSidePanelRef}
+          toggleSidePanelRef={toggleSidePanelRef}
         />
 
         {/* Log Views - readonly terminal replays */}
