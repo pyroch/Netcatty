@@ -30,6 +30,7 @@ import {
   getPathSuggestions,
   resolvePathComponents,
 } from "./remotePathCompleter";
+import { getSnippetSuggestions } from "./snippetCompleter";
 import type { Snippet } from "../../../domain/models";
 
 /** Source indicator for where a suggestion came from */
@@ -171,6 +172,8 @@ export async function getCompletions(
     protocol?: string;
     /** Current working directory (from OSC 7) */
     cwd?: string;
+    /** Custom snippets to surface at the command position */
+    snippets?: Snippet[];
   } = {},
 ): Promise<CompletionSuggestion[]> {
   const { hostId, maxResults = 15 } = options;
@@ -290,6 +293,15 @@ export async function getCompletions(
       } satisfies CompletionSuggestion;
       suggestions.push(suggestion);
       seenSuggestionTexts.add(suggestion.text);
+    }
+  }
+
+  // Snippets: only at the command position (typing the command name).
+  if (options.snippets && options.snippets.length > 0 && ctx.wordIndex === 0) {
+    for (const snippetSuggestion of getSnippetSuggestions(input, options.snippets, { hostId })) {
+      if (seenSuggestionTexts.has(snippetSuggestion.text)) continue;
+      suggestions.push(snippetSuggestion);
+      seenSuggestionTexts.add(snippetSuggestion.text);
     }
   }
 
