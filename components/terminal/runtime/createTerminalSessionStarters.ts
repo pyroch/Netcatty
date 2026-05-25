@@ -444,24 +444,65 @@ const scheduleStartupCommand = (
 
   ctx.hasRunStartupCommandRef.current = true;
   const scheduledSessionId = id;
-  const timeoutId = setTimeout(() => {
-    if (!ctx.sessionRef.current || ctx.sessionRef.current !== scheduledSessionId) {
+  const settings = ctx.terminalSettingsRef?.current ?? ctx.terminalSettings;
+  const delayMs = normalizeStartupCommandDelay(settings?.startupCommandDelayMs);
+
+  let cancelled = false;
+  let timeoutId: ReturnType<typeof setTimeout> | undefined;
+  const sessionIsCurrent = () =>
+    !!ctx.sessionRef.current && ctx.sessionRef.current === scheduledSessionId;
+
+  // noAutoRun (snippet "type but don't execute"): type the command as-is, no
+  // Enter and no line-splitting — unchanged behavior.
+  if (ctx.noAutoRun) {
+    timeoutId = setTimeout(() => {
+      if (cancelled) return;
+      if (!sessionIsCurrent()) {
+        onSettled?.();
+        return;
+      }
+      ctx.terminalBackend.writeToSession(ctx.sessionRef.current, commandToRun, { automated: true });
+      onSettled?.();
+    }, delayMs);
+    return () => {
+      cancelled = true;
+      if (timeoutId) clearTimeout(timeoutId);
+    };
+  }
+
+  // Auto-run: send each non-empty line in sequence, waiting delayMs before the
+  // first and between each, so a line runs inside any sub-shell opened by a
+  // previous line (e.g. `sudo -i` then `alias ...`).
+  const lines = splitStartupCommandLines(commandToRun);
+  if (lines.length === 0) {
+    onSettled?.();
+    return undefined;
+  }
+
+  let index = 0;
+  const runNext = () => {
+    if (cancelled) return;
+    if (!sessionIsCurrent()) {
       onSettled?.();
       return;
     }
-    const suffix = ctx.noAutoRun ? "" : "\r";
-    ctx.terminalBackend.writeToSession(ctx.sessionRef.current, `${commandToRun}${suffix}`, {
-      automated: true,
-    });
-    if (!ctx.noAutoRun) {
-      markPromptLineBreakCommandPending(ctx.promptLineBreakStateRef, term, commandToRun);
+    const line = lines[index];
+    ctx.terminalBackend.writeToSession(ctx.sessionRef.current, `${line}\r`, { automated: true });
+    markPromptLineBreakCommandPending(ctx.promptLineBreakStateRef, term, line);
+    ctx.onCommandExecuted?.(line, ctx.host.id, ctx.host.label, ctx.sessionId);
+    index += 1;
+    if (index < lines.length) {
+      timeoutId = setTimeout(runNext, delayMs);
+    } else {
+      onSettled?.();
     }
-    onSettled?.();
-    if (!ctx.noAutoRun && ctx.onCommandExecuted) {
-      ctx.onCommandExecuted(commandToRun, ctx.host.id, ctx.host.label, ctx.sessionId);
-    }
-  }, 600);
-  return () => clearTimeout(timeoutId);
+  };
+
+  timeoutId = setTimeout(runNext, delayMs);
+  return () => {
+    cancelled = true;
+    if (timeoutId) clearTimeout(timeoutId);
+  };
 };
 
 const runDistroDetection = async (
