@@ -1197,12 +1197,10 @@ function App({ settings }: { settings: SettingsState }) {
   const addConnectionLogRef = useRef(addConnectionLog);
   addConnectionLogRef.current = addConnectionLog;
 
-  const closeSidePanelRef = useRef<(() => void) | null>(null);
   const toggleScriptsSidePanelRef = useRef<(() => void) | null>(null);
   // Populated below so the hotkey dispatcher can open the Settings window
   // even though `handleOpenSettings` is declared further down in the file.
   const handleOpenSettingsRef = useRef<() => void>(() => {});
-  const activeSidePanelTabRef = useRef<string | null>(null);
   const closeTabInFlightRef = useRef(false);
   // Populated by UnsavedChangesProvider render-prop below so that the hotkey
   // dispatcher (defined outside that scope) can still reach the dirty-confirm
@@ -1382,13 +1380,11 @@ function App({ settings }: { settings: SettingsState }) {
         const workspace = workspaces.find((w) => w.id === currentId) ?? null;
 
         const focusIsInsideTerminal = !!document.activeElement?.closest('[data-session-id]');
-        const activeSidePanel = activeSidePanelTabRef.current;
 
         const intent = resolveCloseIntent({
           activeTabId: currentId,
           workspace: workspace ? { id: workspace.id, focusedSessionId: workspace.focusedSessionId } : null,
           sessionForTab: session,
-          activeSidePanelTab: activeSidePanel,
           focusIsInsideTerminal,
         });
 
@@ -1400,10 +1396,6 @@ function App({ settings }: { settings: SettingsState }) {
               case 'closeSingleTab': {
                 const ok = await confirmIfBusyLocalTerminal([intent.sessionId]);
                 if (ok) closeSession(intent.sessionId);
-                return;
-              }
-              case 'closeSidePanel': {
-                closeSidePanelRef.current?.();
                 return;
               }
               case 'closeWorkspace': {
@@ -2147,9 +2139,7 @@ function App({ settings }: { settings: SettingsState }) {
           sessionLogsEnabled={sessionLogsEnabled}
           sessionLogsDir={sessionLogsDir}
           sessionLogsFormat={sessionLogsFormat}
-          closeSidePanelRef={closeSidePanelRef}
           toggleScriptsSidePanelRef={toggleScriptsSidePanelRef}
-          activeSidePanelTabRef={activeSidePanelTabRef}
         />
 
         {/* Log Views - readonly terminal replays */}
