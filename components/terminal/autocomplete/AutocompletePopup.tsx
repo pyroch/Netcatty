@@ -354,8 +354,9 @@ const AutocompletePopup: React.FC<AutocompletePopupProps> = ({
                 {suggestion.displayText}
               </span>
 
-              {/* Inline description (truncated) */}
-              {suggestion.description && (
+              {/* Inline description (truncated). Snippets show only their label
+                  in the row — the full command lives in the detail preview. */}
+              {suggestion.source !== "snippet" && suggestion.description && (
                 <span
                   style={{
                     fontSize: "11px",

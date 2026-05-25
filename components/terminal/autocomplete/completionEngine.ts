@@ -297,11 +297,12 @@ export async function getCompletions(
   }
 
   // Snippets: only at the command position (typing the command name).
+  // Push without the early seen-text skip: snippets score above history, so if
+  // a snippet's label collides with an existing history entry's text, the
+  // score-sort + final dedup below keeps the snippet (the higher-scored one).
   if (options.snippets && options.snippets.length > 0 && ctx.wordIndex === 0) {
     for (const snippetSuggestion of getSnippetSuggestions(input, options.snippets, { hostId })) {
-      if (seenSuggestionTexts.has(snippetSuggestion.text)) continue;
       suggestions.push(snippetSuggestion);
-      seenSuggestionTexts.add(snippetSuggestion.text);
     }
   }
 
