@@ -1,8 +1,8 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { getCompletions } from "./completionEngine";
-import type { Snippet } from "../../../domain/models";
+import { getCompletions } from "./autocomplete/completionEngine";
+import type { Snippet } from "../../domain/models";
 
 const deploySnippet: Snippet = { id: "d", label: "deploy", command: "kubectl apply -f ." };
 

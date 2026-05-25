@@ -1,8 +1,8 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { getSnippetSuggestions } from "./snippetCompleter";
-import type { Snippet } from "../../../domain/models";
+import { getSnippetSuggestions } from "./autocomplete/snippetCompleter";
+import type { Snippet } from "../../domain/models";
 
 const snip = (over: Partial<Snippet>): Snippet => ({
   id: over.id ?? "s1",
