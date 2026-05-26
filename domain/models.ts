@@ -278,6 +278,29 @@ export const parseKeyCombo = (keyStr: string): { modifiers: string[]; key: strin
   return { modifiers: parts, key };
 };
 
+const PHYSICAL_SHORTCUT_KEY_NAMES: Record<string, string> = {
+  Backquote: '`',
+  Minus: '-',
+  Equal: '=',
+  BracketLeft: '[',
+  BracketRight: ']',
+  Backslash: '\\',
+  Semicolon: ';',
+  Quote: "'",
+  Comma: ',',
+  Period: '.',
+  Slash: '/',
+};
+
+const physicalShortcutKeyName = (e: KeyboardEvent): string | null => {
+  const code = e.code;
+  if (/^Key[A-Z]$/.test(code)) return code.slice(3);
+  if (/^Digit[0-9]$/.test(code)) return code.slice(5);
+  return PHYSICAL_SHORTCUT_KEY_NAMES[code] ?? null;
+};
+
+const shortcutEventKey = (e: KeyboardEvent): string => physicalShortcutKeyName(e) ?? e.key;
+
 // Convert keyboard event to a key string
 export const keyEventToString = (e: KeyboardEvent, isMac: boolean): string => {
   const parts: string[] = [];
@@ -295,7 +318,7 @@ export const keyEventToString = (e: KeyboardEvent, isMac: boolean): string => {
   }
 
   // Get the key name
-  let keyName = e.key;
+  let keyName = shortcutEventKey(e);
   // Normalize special keys
   if (keyName === ' ') keyName = 'Space';
   else if (keyName === 'ArrowUp') keyName = '↑';
@@ -325,7 +348,7 @@ export const matchesKeyBinding = (e: KeyboardEvent, keyStr: string, isMac: boole
   // Handle range patterns like "[1...9]"
   if (keyStr.includes('[1...9]')) {
     const basePattern = keyStr.replace('[1...9]', '');
-    const key = e.key;
+    const key = shortcutEventKey(e);
     if (!/^[1-9]$/.test(key)) return false;
     // Check modifiers match the base pattern
     const testStr = basePattern + key;
@@ -398,7 +421,7 @@ export const matchesKeyBinding = (e: KeyboardEvent, keyStr: string, isMac: boole
     return normalizedKey;
   };
 
-  const eventKey = normalizeKey(e.key);
+  const eventKey = normalizeKey(shortcutEventKey(e));
   const parsedKey = normalizeKey(key);
 
   return eventKey.toLowerCase() === parsedKey.toLowerCase();
