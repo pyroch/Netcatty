@@ -299,7 +299,14 @@ const physicalShortcutKeyName = (e: KeyboardEvent): string | null => {
   return PHYSICAL_SHORTCUT_KEY_NAMES[code] ?? null;
 };
 
-const shortcutEventKey = (e: KeyboardEvent): string => physicalShortcutKeyName(e) ?? e.key;
+const LATIN_SHORTCUT_KEY_PATTERN = /^[A-Za-z]$/;
+
+const shortcutEventKey = (e: KeyboardEvent): string => {
+  if (LATIN_SHORTCUT_KEY_PATTERN.test(e.key)) {
+    return e.key;
+  }
+  return physicalShortcutKeyName(e) ?? e.key;
+};
 
 // Convert keyboard event to a key string
 export const keyEventToString = (e: KeyboardEvent, isMac: boolean): string => {

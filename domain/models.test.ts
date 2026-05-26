@@ -1,0 +1,40 @@
+import assert from 'node:assert/strict';
+import test from 'node:test';
+
+import { keyEventToString, matchesKeyBinding } from './models.ts';
+
+const keyboardEvent = (
+  key: string,
+  code: string,
+  modifiers: Partial<KeyboardEvent> = {},
+): KeyboardEvent => ({
+  key,
+  code,
+  altKey: false,
+  ctrlKey: false,
+  metaKey: false,
+  shiftKey: false,
+  ...modifiers,
+}) as KeyboardEvent;
+
+test('shortcut matching falls back to physical keys for non-Latin layouts', () => {
+  const event = keyboardEvent('\u0446', 'KeyW', { ctrlKey: true });
+
+  assert.equal(matchesKeyBinding(event, 'Ctrl + W', false), true);
+  assert.equal(keyEventToString(event, false), 'Ctrl + W');
+});
+
+test('shortcut matching respects Latin characters from non-QWERTY layouts', () => {
+  const event = keyboardEvent('w', 'Comma', { ctrlKey: true });
+
+  assert.equal(matchesKeyBinding(event, 'Ctrl + W', false), true);
+  assert.equal(matchesKeyBinding(event, 'Ctrl + ,', false), false);
+  assert.equal(keyEventToString(event, false), 'Ctrl + W');
+});
+
+test('shortcut matching keeps physical digit ranges layout-independent', () => {
+  const event = keyboardEvent('&', 'Digit1', { ctrlKey: true });
+
+  assert.equal(matchesKeyBinding(event, 'Ctrl + [1...9]', false), true);
+  assert.equal(keyEventToString(event, false), 'Ctrl + 1');
+});
