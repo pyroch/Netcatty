@@ -301,12 +301,20 @@ const physicalShortcutKeyName = (e: KeyboardEvent): string | null => {
 
 const LATIN_SHORTCUT_KEY_PATTERN = /^\p{Script=Latin}$/u;
 const ASCII_SHORTCUT_KEY_PATTERN = /^[A-Za-z]$/;
+const PRINTABLE_NON_LETTER_SHORTCUT_KEY_PATTERN = /^[^\p{Letter}\p{Number}\s]$/u;
 
 const shortcutEventKey = (e: KeyboardEvent): string => {
-  if (LATIN_SHORTCUT_KEY_PATTERN.test(e.key)) {
+  const physicalKey = physicalShortcutKeyName(e);
+  if (/^Digit[0-9]$/.test(e.code) && physicalKey) {
+    return physicalKey;
+  }
+  if (
+    LATIN_SHORTCUT_KEY_PATTERN.test(e.key) ||
+    PRINTABLE_NON_LETTER_SHORTCUT_KEY_PATTERN.test(e.key)
+  ) {
     return e.key;
   }
-  return physicalShortcutKeyName(e) ?? e.key;
+  return physicalKey ?? e.key;
 };
 
 // Convert keyboard event to a key string
