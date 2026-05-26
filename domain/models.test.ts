@@ -52,5 +52,13 @@ test('shortcut matching keeps physical digit ranges layout-independent', () => {
   const event = keyboardEvent('&', 'Digit1', { ctrlKey: true });
 
   assert.equal(matchesKeyBinding(event, 'Ctrl + [1...9]', false), true);
-  assert.equal(keyEventToString(event, false), 'Ctrl + 1');
+  assert.equal(keyEventToString(event, false), 'Ctrl + &');
+});
+
+test('shortcut matching preserves shifted number-row symbols', () => {
+  const event = keyboardEvent('!', 'Digit1', { ctrlKey: true, shiftKey: true });
+
+  assert.equal(matchesKeyBinding(event, 'Ctrl + Shift + !', false), true);
+  assert.equal(matchesKeyBinding(event, 'Ctrl + Shift + 1', false), false);
+  assert.equal(keyEventToString(event, false), 'Ctrl + Shift + !');
 });

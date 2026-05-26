@@ -305,9 +305,6 @@ const PRINTABLE_NON_LETTER_SHORTCUT_KEY_PATTERN = /^[^\p{Letter}\p{Number}\s]$/u
 
 const shortcutEventKey = (e: KeyboardEvent): string => {
   const physicalKey = physicalShortcutKeyName(e);
-  if (/^Digit[0-9]$/.test(e.code) && physicalKey) {
-    return physicalKey;
-  }
   if (
     LATIN_SHORTCUT_KEY_PATTERN.test(e.key) ||
     PRINTABLE_NON_LETTER_SHORTCUT_KEY_PATTERN.test(e.key)
@@ -364,11 +361,19 @@ export const matchesKeyBinding = (e: KeyboardEvent, keyStr: string, isMac: boole
   // Handle range patterns like "[1...9]"
   if (keyStr.includes('[1...9]')) {
     const basePattern = keyStr.replace('[1...9]', '');
-    const key = shortcutEventKey(e);
+    const key = physicalShortcutKeyName(e) ?? shortcutEventKey(e);
     if (!/^[1-9]$/.test(key)) return false;
     // Check modifiers match the base pattern
     const testStr = basePattern + key;
-    return matchesKeyBinding(e, testStr.trim(), isMac);
+    const physicalDigitEvent = {
+      key,
+      code: e.code,
+      metaKey: e.metaKey,
+      ctrlKey: e.ctrlKey,
+      altKey: e.altKey,
+      shiftKey: e.shiftKey,
+    } as KeyboardEvent;
+    return matchesKeyBinding(physicalDigitEvent, testStr.trim(), isMac);
   }
 
   // Handle arrow key patterns like "arrows"
