@@ -299,7 +299,8 @@ const physicalShortcutKeyName = (e: KeyboardEvent): string | null => {
   return PHYSICAL_SHORTCUT_KEY_NAMES[code] ?? null;
 };
 
-const LATIN_SHORTCUT_KEY_PATTERN = /^[A-Za-z]$/;
+const LATIN_SHORTCUT_KEY_PATTERN = /^\p{Script=Latin}$/u;
+const ASCII_SHORTCUT_KEY_PATTERN = /^[A-Za-z]$/;
 
 const shortcutEventKey = (e: KeyboardEvent): string => {
   if (LATIN_SHORTCUT_KEY_PATTERN.test(e.key)) {
@@ -337,7 +338,7 @@ export const keyEventToString = (e: KeyboardEvent, isMac: boolean): string => {
   else if (keyName === 'Delete') keyName = 'Del';
   else if (keyName === 'Enter') keyName = '↵';
   else if (keyName === 'Tab') keyName = '⇥';
-  else if (keyName.length === 1) keyName = keyName.toUpperCase();
+  else if (ASCII_SHORTCUT_KEY_PATTERN.test(keyName)) keyName = keyName.toUpperCase();
 
   // Don't include modifier keys themselves
   if (['Meta', 'Control', 'Alt', 'Shift'].includes(e.key)) {

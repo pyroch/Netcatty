@@ -32,6 +32,14 @@ test('shortcut matching respects Latin characters from non-QWERTY layouts', () =
   assert.equal(keyEventToString(event, false), 'Ctrl + W');
 });
 
+test('shortcut matching respects non-ASCII Latin layout characters', () => {
+  const event = keyboardEvent('ß', 'Minus', { ctrlKey: true });
+
+  assert.equal(matchesKeyBinding(event, 'Ctrl + ß', false), true);
+  assert.equal(matchesKeyBinding(event, 'Ctrl + -', false), false);
+  assert.equal(keyEventToString(event, false), 'Ctrl + ß');
+});
+
 test('shortcut matching keeps physical digit ranges layout-independent', () => {
   const event = keyboardEvent('&', 'Digit1', { ctrlKey: true });
 
