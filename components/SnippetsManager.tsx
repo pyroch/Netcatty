@@ -5,7 +5,7 @@ import { useStoredViewMode } from '../application/state/useStoredViewMode';
 import { STORAGE_KEY_VAULT_SNIPPETS_VIEW_MODE } from '../infrastructure/config/storageKeys';
 import { cn, isMacPlatform } from '../lib/utils';
 import { Host, ProxyProfile, ShellHistoryEntry, Snippet, SSHKey } from '../types';
-import { HotkeyScheme, KeyBinding, keyEventToString, ManagedSource, matchesKeyBinding, parseKeyCombo } from '../domain/models';
+import { formatKeyBindingForPlatform, HotkeyScheme, KeyBinding, keyEventToString, ManagedSource, matchesKeyBinding, parseKeyCombo } from '../domain/models';
 import { DistroAvatar } from './DistroAvatar';
 import SelectHostPanel from './SelectHostPanel';
 import { AsidePanel, AsidePanelContent, AsidePanelFooter } from './ui/aside-panel';
@@ -189,7 +189,7 @@ const SnippetsManager: React.FC<SnippetsManagerProps> = ({
 
   const validateShortkey = useCallback((key: string): string | null => {
     if (!key) return null;
-    
+
     const syntheticEvent = buildKeyEventFromString(key);
     if (syntheticEvent) {
       const conflictsSystem = activeSystemBindings.some(({ binding, isMac: bindingIsMac }) => (
@@ -199,7 +199,7 @@ const SnippetsManager: React.FC<SnippetsManagerProps> = ({
         return t('snippets.shortkey.error.systemConflict');
       }
     }
-    
+
     // Check other snippet shortcuts
     if (syntheticEvent) {
       for (const snippet of existingShortkeys) {
@@ -216,7 +216,7 @@ const SnippetsManager: React.FC<SnippetsManagerProps> = ({
         return t('snippets.shortkey.error.snippetConflict', { name: conflictingSnippet.label });
       }
     }
-    
+
     return null;
   }, [
     activeSystemBindings,
@@ -246,7 +246,7 @@ const SnippetsManager: React.FC<SnippetsManagerProps> = ({
       if (['Meta', 'Control', 'Alt', 'Shift'].includes(e.key)) return;
 
       const keyString = keyEventToString(e, isMac);
-      
+
       // Validate the new shortkey
       const error = validateShortkey(keyString);
       if (error) {
@@ -254,7 +254,7 @@ const SnippetsManager: React.FC<SnippetsManagerProps> = ({
         // Don't stop recording, let user try again
         return;
       }
-      
+
       setShortkeyError(null);
       setEditingSnippet(prev => ({ ...prev, shortkey: keyString }));
       setIsRecordingShortkey(false);
@@ -348,14 +348,14 @@ const SnippetsManager: React.FC<SnippetsManagerProps> = ({
       // Separate absolute paths (starting with /) from relative paths
       const absolutePaths = packages.filter(p => p.startsWith('/'));
       const relativePaths = packages.filter(p => !p.startsWith('/'));
-      
+
       const results: { name: string; path: string; count: number }[] = [];
-      
+
       // Process relative paths (traditional behavior)
       const relativeRoots = relativePaths
         .map((p) => p.split('/')[0])
         .filter((name): name is string => Boolean(name) && name.length > 0);
-      
+
       Array.from(new Set(relativeRoots)).forEach((name: string) => {
         const path: string = name;
         const count = snippets.filter((s) => {
@@ -364,7 +364,7 @@ const SnippetsManager: React.FC<SnippetsManagerProps> = ({
         }).length;
         results.push({ name, path, count });
       });
-      
+
       // Process absolute paths - show them as separate roots with "/" prefix
       const absoluteRoots = absolutePaths
         .map((p) => {
@@ -373,7 +373,7 @@ const SnippetsManager: React.FC<SnippetsManagerProps> = ({
           return firstSegment;
         })
         .filter((name): name is string => Boolean(name) && name.length > 0);
-      
+
       Array.from(new Set(absoluteRoots)).forEach((name: string) => {
         const path: string = `/${name}`;
         const displayName: string = `/${name}`; // Show with leading slash to distinguish
@@ -383,10 +383,10 @@ const SnippetsManager: React.FC<SnippetsManagerProps> = ({
         }).length;
         results.push({ name: displayName, path, count });
       });
-      
+
       return results;
     }
-    
+
     const prefix = selectedPackage + '/';
     const children = packages
       .filter((p) => p.startsWith(prefix))
@@ -447,13 +447,13 @@ const SnippetsManager: React.FC<SnippetsManagerProps> = ({
   const createPackage = () => {
     const name = newPackageName.trim();
     if (!name) return;
-    
+
     // Allow leading slash and validate the rest - allow hyphens and Unicode letters/numbers
     if (!/^\/?([\w\p{L}\p{N}-]+(\/[\w\p{L}\p{N}-]+)*)\/?$/u.test(name)) {
       // Could add toast notification here for invalid characters
       return;
     }
-    
+
     // Normalize path construction to avoid double slashes
     let full: string;
     if (selectedPackage) {
@@ -469,14 +469,14 @@ const SnippetsManager: React.FC<SnippetsManagerProps> = ({
     if (full.endsWith('/')) {
       full = full.slice(0, -1);
     }
-    
+
     // Check for duplicate package names (case-insensitive)
     const existingPackage = packages.find(p => p.toLowerCase() === full.toLowerCase());
     if (existingPackage) {
       // Could add toast notification here for duplicate package
       return;
     }
-    
+
     onPackagesChange([...packages, full]);
     setNewPackageName('');
     setIsPackageDialogOpen(false);
@@ -485,7 +485,7 @@ const SnippetsManager: React.FC<SnippetsManagerProps> = ({
   const deletePackage = (path: string) => {
     // Remove the package and all its children
     const keep = packages.filter((p) => !(p === path || p.startsWith(path + '/')));
-    
+
     // Move all snippets from deleted packages to root
     const updatedSnippets = snippets.map((s) => {
       if (!s.package) return s;
@@ -494,13 +494,13 @@ const SnippetsManager: React.FC<SnippetsManagerProps> = ({
       }
       return s;
     });
-    
+
     // Update packages first, then save snippets
     onPackagesChange(keep);
-    
+
     // Bulk-save all snippets to avoid stale-closure overwrites
     onBulkSave(updatedSnippets);
-    
+
     // Reset selected package if it was deleted
     if (selectedPackage && (selectedPackage === path || selectedPackage.startsWith(path + '/'))) {
       setSelectedPackage(null);
@@ -638,21 +638,21 @@ const SnippetsManager: React.FC<SnippetsManagerProps> = ({
   const packageOptions: ComboboxOption[] = useMemo(() => {
     // Generate all possible parent paths for each package
     const allPaths = new Set<string>();
-    
+
     packages.forEach(pkg => {
       // Add the full package path
       allPaths.add(pkg);
-      
+
       // Add all parent paths
       const parts = pkg.split('/').filter(Boolean);
       const isAbsolute = pkg.startsWith('/');
-      
+
       for (let i = 1; i < parts.length; i++) {
         const parentPath = (isAbsolute ? '/' : '') + parts.slice(0, i).join('/');
         allPaths.add(parentPath);
       }
     });
-    
+
     return Array.from(allPaths)
       .sort((a, b) => {
         // Sort by depth first (shorter paths first), then alphabetically
@@ -878,7 +878,9 @@ const SnippetsManager: React.FC<SnippetsManagerProps> = ({
                 <Keyboard size={14} className="text-muted-foreground" />
                 {isRecordingShortkey
                   ? t('snippets.shortkey.recording')
-                  : editingSnippet.shortkey || t('snippets.shortkey.placeholder')}
+                  : editingSnippet.shortkey
+                    ? formatKeyBindingForPlatform(editingSnippet.shortkey, isMac)
+                    : t('snippets.shortkey.placeholder')}
               </button>
               {shortkeyError && (
                 <p className="text-xs text-destructive">{shortkeyError}</p>
@@ -1189,7 +1191,7 @@ const SnippetsManager: React.FC<SnippetsManagerProps> = ({
                           </div>
                           {snippet.shortkey && (
                             <div className="shrink-0 px-2 py-1 text-[10px] font-mono rounded border border-border bg-muted/50 text-muted-foreground">
-                              {snippet.shortkey}
+                              {formatKeyBindingForPlatform(snippet.shortkey, isMac)}
                             </div>
                           )}
                           {viewMode === 'list' && (

@@ -301,6 +301,21 @@ export const parseKeyCombo = (keyStr: string): { modifiers: string[]; key: strin
   return { modifiers: parts, key };
 };
 
+const platformModifier = (modifier: string, isMac: boolean): string => {
+  if (isMac && modifier === 'Alt') return '⌥';
+  if (isMac && modifier === 'Ctrl') return '⌃';
+  if (!isMac && modifier === '⌥') return 'Alt';
+  if (!isMac && modifier === '⌃') return 'Ctrl';
+  return modifier;
+};
+
+export const formatKeyBindingForPlatform = (keyStr: string, isMac: boolean): string => {
+  const parsed = parseKeyCombo(keyStr);
+  if (!parsed) return keyStr;
+
+  return [...parsed.modifiers.map((modifier) => platformModifier(modifier, isMac)), parsed.key].join(' + ');
+};
+
 const PHYSICAL_SHORTCUT_KEY_NAMES: Record<string, string> = {
   Backquote: '`',
   Minus: '-',
@@ -418,13 +433,11 @@ export const matchesKeyBinding = (e: KeyboardEvent, keyStr: string, isMac: boole
   const parsed = parseKeyCombo(keyStr);
   if (!parsed) return false;
 
-  const { modifiers, key } = parsed;
+  const { key } = parsed;
+  const modifiers = parsed.modifiers.map((modifier) => platformModifier(modifier, isMac));
 
-  const hasMacModifiers = modifiers.some((modifier) => ['⌘', '⌃', '⌥'].includes(modifier));
-  const hasPcModifiers = modifiers.some((modifier) => ['Ctrl', 'Alt', 'Win'].includes(modifier));
-  if ((!isMac && hasMacModifiers) || (isMac && hasPcModifiers)) {
-    return false;
-  }
+  if (isMac && modifiers.includes('Win')) return false;
+  if (!isMac && modifiers.includes('⌘')) return false;
 
   // Check modifiers
   if (isMac) {

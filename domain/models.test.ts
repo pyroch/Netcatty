@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { keyEventToString, matchesKeyBinding } from './models.ts';
+import { formatKeyBindingForPlatform, keyEventToString, matchesKeyBinding } from './models.ts';
 
 const keyboardEvent = (
   key: string,
@@ -61,4 +61,25 @@ test('shortcut matching preserves shifted number-row symbols', () => {
   assert.equal(matchesKeyBinding(event, 'Ctrl + Shift + !', false), true);
   assert.equal(matchesKeyBinding(event, 'Ctrl + Shift + 1', false), false);
   assert.equal(keyEventToString(event, false), 'Ctrl + Shift + !');
+});
+
+test('mac shortcuts accept Alt as an Option alias', () => {
+  const event = keyboardEvent('c', 'KeyC', { altKey: true });
+
+  assert.equal(matchesKeyBinding(event, '\u2325 + C', true), true);
+  assert.equal(matchesKeyBinding(event, 'Alt + C', true), true);
+  assert.equal(keyEventToString(event, true), '\u2325 + C');
+});
+
+test('pc shortcuts accept Option as an Alt alias', () => {
+  const event = keyboardEvent('c', 'KeyC', { altKey: true });
+
+  assert.equal(matchesKeyBinding(event, 'Alt + C', false), true);
+  assert.equal(matchesKeyBinding(event, '\u2325 + C', false), true);
+  assert.equal(keyEventToString(event, false), 'Alt + C');
+});
+
+test('shortcut display uses platform modifier names', () => {
+  assert.equal(formatKeyBindingForPlatform('\u2325 + C', false), 'Alt + C');
+  assert.equal(formatKeyBindingForPlatform('Alt + C', true), '\u2325 + C');
 });

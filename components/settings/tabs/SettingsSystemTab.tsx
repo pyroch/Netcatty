@@ -7,7 +7,7 @@ import { useI18n } from "../../../application/i18n/I18nProvider";
 import { getCredentialProtectionAvailability } from "../../../infrastructure/services/credentialProtection";
 import { netcattyBridge } from "../../../infrastructure/services/netcattyBridge";
 import type { UpdateState } from '../../../application/state/useUpdateCheck';
-import { SessionLogFormat, keyEventToString } from "../../../domain/models";
+import { SessionLogFormat, formatKeyBindingForPlatform, keyEventToString } from "../../../domain/models";
 import { TabsContent } from "../../ui/tabs";
 import { Button } from "../../ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "../../ui/tooltip";
@@ -917,7 +917,9 @@ const SettingsSystemTab: React.FC<SettingsSystemTabProps> = ({
                     >
                       {isRecordingHotkey
                         ? t("settings.shortcuts.recording")
-                        : toggleWindowHotkey || t("settings.globalHotkey.notSet")}
+                        : toggleWindowHotkey
+                          ? formatKeyBindingForPlatform(toggleWindowHotkey, isMac)
+                          : t("settings.globalHotkey.notSet")}
                     </button>
                     {toggleWindowHotkey && (
                       <Tooltip>
