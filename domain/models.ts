@@ -369,7 +369,9 @@ export const keyEventToString = (e: KeyboardEvent, isMac: boolean): string => {
   }
 
   // Get the key name
-  let keyName = shortcutEventKey(e);
+  let keyName = isMac && e.altKey
+    ? physicalShortcutKeyName(e) ?? shortcutEventKey(e)
+    : shortcutEventKey(e);
   // Normalize special keys
   if (keyName === ' ') keyName = 'Space';
   else if (keyName === 'ArrowUp') keyName = '↑';
@@ -481,7 +483,15 @@ export const matchesKeyBinding = (e: KeyboardEvent, keyStr: string, isMac: boole
   const eventKey = normalizeKey(shortcutEventKey(e));
   const parsedKey = normalizeKey(key);
 
-  return eventKey.toLowerCase() === parsedKey.toLowerCase();
+  if (eventKey.toLowerCase() === parsedKey.toLowerCase()) return true;
+
+  const physicalKey = physicalShortcutKeyName(e);
+  return Boolean(
+    isMac &&
+    e.altKey &&
+    physicalKey &&
+    normalizeKey(physicalKey).toLowerCase() === parsedKey.toLowerCase(),
+  );
 };
 
 export const DEFAULT_KEY_BINDINGS: KeyBinding[] = [

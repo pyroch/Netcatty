@@ -83,3 +83,10 @@ test('shortcut display uses platform modifier names', () => {
   assert.equal(formatKeyBindingForPlatform('\u2325 + C', false), 'Alt + C');
   assert.equal(formatKeyBindingForPlatform('Alt + C', true), '\u2325 + C');
 });
+
+test('mac option shortcuts use the physical key when option emits a character', () => {
+  const event = keyboardEvent('\u00e7', 'KeyC', { altKey: true });
+
+  assert.equal(matchesKeyBinding(event, '\u2325 + C', true), true);
+  assert.equal(keyEventToString(event, true), '\u2325 + C');
+});
