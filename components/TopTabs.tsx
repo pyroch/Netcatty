@@ -870,7 +870,16 @@ const TopTabsInner: React.FC<TopTabsProps> = ({
         updateScrollState={updateScrollState}
       />
       {/* Always-on drag stripe so the window can be moved even when tabs fill the bar */}
-      <div className="absolute inset-x-0 top-0 h-1 app-drag pointer-events-auto z-10" style={dragRegionStyle} aria-hidden />
+      <div
+        className="absolute inset-x-0 top-0 h-1 app-drag pointer-events-auto z-10"
+        style={{
+          ...dragRegionStyle,
+          // Keep the top drag stripe out of the Windows window-controls hit area.
+          // 8rem = ml-2 gap + three 2.5rem control buttons.
+          right: showWindowControls ? '8rem' : 0,
+        }}
+        aria-hidden
+      />
       <div
         className="h-9 flex items-end gap-0 app-drag overflow-visible"
         style={{
@@ -1041,9 +1050,9 @@ const TopTabsInner: React.FC<TopTabsProps> = ({
           </Tooltip>
         )}
 
-        {/* Fixed right controls — utility icons + window controls share one h-7 row */}
+        {/* Fixed right controls: utilities sit on the tab row; window controls fill the titlebar. */}
         <div
-          className="flex-shrink-0 flex items-center gap-0.5 app-drag self-end h-7 overflow-visible"
+          className="relative z-20 flex-shrink-0 flex items-end gap-0.5 app-drag self-stretch h-9 overflow-visible"
           style={dragRegionStyle}
         >
           <Tooltip>

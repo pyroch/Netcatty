@@ -103,6 +103,16 @@ test("quick switcher plus button exposes a custom CSS hook", () => {
   assert.match(topTabsSource, /data-section="top-tabs-quick-switcher-toggle"/);
 });
 
+test("Windows window controls occupy the full titlebar hit area", () => {
+  const itemsSource = readFileSync(new URL("./top-tabs/TopTabItems.tsx", import.meta.url), "utf8");
+
+  assert.match(itemsSource, /className="ml-2 flex h-9 items-stretch overflow-visible app-no-drag"/);
+  assert.match(topTabsSource, /className="relative z-20 flex-shrink-0 flex items-end gap-0\.5 app-drag self-stretch h-9 overflow-visible"/);
+  assert.match(topTabsSource, /right: showWindowControls \? '8rem' : 0/);
+  assert.match(indexCss, /\.window-control-btn[\s\S]*height: 2\.25rem/);
+  assert.match(indexCss, /\.window-control-btn[\s\S]*width: 2\.5rem/);
+});
+
 test("SessionTabIcon checks custom host icon appearance before distro logos", () => {
   const source = readFileSync(new URL("./top-tabs/TopTabItems.tsx", import.meta.url), "utf8");
   assert.match(source, /resolveHostIconAppearance\(host\)/);
