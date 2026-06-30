@@ -25,6 +25,7 @@ import {
   parseTerminalPaneRenderSnapshot,
 } from '../terminalPaneVisibility';
 import type { ResolvedAppearance, TerminalAppearanceHostScope } from '../../domain/terminalAppearanceRuntime';
+import type { TerminalSidePanelAutoOpenTab } from '../../domain/terminalSidePanelAutoOpen';
 
 export type SidePanelTab = 'sftp' | 'scripts' | 'history' | 'theme' | 'ai' | 'system' | 'notes';
 
@@ -68,7 +69,7 @@ export type PendingSftpUpload = {
 export type SnippetExecutor = (
   command: string,
   noAutoRun?: boolean,
-  options?: { broadcast?: boolean },
+  options?: { broadcast?: boolean; multiLineRunMode?: Snippet["multiLineRunMode"] },
 ) => void;
 
 export type PendingTerminalSelectionForAI = {
@@ -698,6 +699,8 @@ export interface TerminalLayerProps {
   sftpShowHiddenFiles: boolean;
   sftpUseCompressedUpload: boolean;
   sftpAutoOpenSidebar: boolean;
+  terminalSidePanelAutoOpen?: boolean;
+  terminalSidePanelAutoOpenTab?: TerminalSidePanelAutoOpenTab;
   sftpFollowTerminalCwd: boolean;
   setSftpFollowTerminalCwd: (enabled: boolean) => void;
   editorWordWrap: boolean;
@@ -1324,6 +1327,7 @@ const TerminalPane: React.FC<TerminalPaneProps> = memo(({
         restoreTerminalCwd={restoreTerminalCwd && sessionHostResolved}
         startupCommand={session.startupCommand}
         noAutoRun={session.noAutoRun}
+        multiLineRunMode={session.multiLineRunMode}
         pendingScriptId={session.pendingScriptId}
         pendingScript={session.pendingScript}
         reuseConnectionFromSessionId={session.reuseConnectionFromSessionId}

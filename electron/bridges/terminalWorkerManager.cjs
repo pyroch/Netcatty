@@ -187,7 +187,20 @@ function createTerminalWorkerManager(options = {}) {
     }
   }
 
-  function handleMessage(message) {
+  function unwrapMessageEvent(eventOrMessage) {
+    if (
+      eventOrMessage &&
+      typeof eventOrMessage === "object" &&
+      !("kind" in eventOrMessage) &&
+      "data" in eventOrMessage
+    ) {
+      return eventOrMessage.data;
+    }
+    return eventOrMessage;
+  }
+
+  function handleMessage(eventOrMessage) {
+    const message = unwrapMessageEvent(eventOrMessage);
     if (!message || typeof message !== "object") return;
     if (message.kind === "response") {
       const entry = pending.get(message.requestId);
@@ -246,6 +259,10 @@ function createTerminalWorkerManager(options = {}) {
     }
     if (message.kind === "zmodem-upload-dialog") {
       void handleZmodemUploadDialogRequest(message);
+      return;
+    }
+    if (message.kind === "zmodem-download-dialog") {
+      void handleZmodemDownloadDialogRequest(message);
     }
   }
 
@@ -267,6 +284,30 @@ function createTerminalWorkerManager(options = {}) {
     } catch (err) {
       child?.postMessage?.({
         kind: "zmodem-upload-dialog-result",
+        requestId: message.requestId,
+        error: err?.message || String(err),
+      });
+    }
+  }
+
+  async function handleZmodemDownloadDialogRequest(message) {
+    try {
+      const contents = electronModule?.webContents?.fromId?.(message.webContentsId);
+      const win = contents && electronModule?.BrowserWindow?.fromWebContents
+        ? electronModule.BrowserWindow.fromWebContents(contents)
+        : null;
+      const result = await electronModule?.dialog?.showOpenDialog?.(win || undefined, {
+        properties: ["openDirectory", "createDirectory"],
+        title: "Select download directory (ZMODEM)",
+      });
+      child?.postMessage?.({
+        kind: "zmodem-download-dialog-result",
+        requestId: message.requestId,
+        result: result || { canceled: true, filePaths: [] },
+      });
+    } catch (err) {
+      child?.postMessage?.({
+        kind: "zmodem-download-dialog-result",
         requestId: message.requestId,
         error: err?.message || String(err),
       });

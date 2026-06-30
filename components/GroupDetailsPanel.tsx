@@ -18,8 +18,7 @@ import { resolveGroupDefaults, resolveGroupTerminalThemeId } from "../domain/gro
 import {
   formatProxyConfigEndpoint,
   formatProxyConfigType,
-  isCompleteProxyConfig,
-  normalizeManualProxyConfig,
+  updateProxyConfigField,
 } from "../domain/proxyProfiles";
 import {
   EnvVar,
@@ -54,6 +53,7 @@ import { TerminalFontSelect } from "./settings/TerminalFontSelect";
 import { useAvailableFonts } from "../application/state/fontStore";
 import { toast } from "./ui/toast";
 import { GroupSshSettingsSection } from "./GroupSshSettingsSection";
+import { prepareProxyConfigForSave } from "./HostDetailsPanel.helpers";
 
 type SubPanel = "none" | "proxy" | "chain" | "env-vars" | "theme-select";
 
@@ -83,11 +83,17 @@ interface GroupDetailsPanelProps {
 
 type GroupDetailsPanelPropsWithResize = GroupDetailsPanelProps & AsidePanelResizeProps;
 
+export const hasGroupTelnetFields = (c: Partial<GroupConfig>): boolean =>
+  c.telnetPort !== undefined ||
+  c.telnetUsername !== undefined ||
+  c.telnetPassword !== undefined ||
+  c.telnetEnabled === true;
+
 const GroupDetailsPanel: React.FC<GroupDetailsPanelPropsWithResize> = ({
   groupPath,
   config,
   availableKeys,
-  identities: _identities,
+  identities,
   proxyProfiles = [],
   allHosts,
   groups,
@@ -129,16 +135,14 @@ const GroupDetailsPanel: React.FC<GroupDetailsPanelPropsWithResize> = ({
     c.port !== undefined || !!c.username || !!c.password || !!c.identityFileId ||
     c.deviceType !== undefined ||
     c.agentForwarding !== undefined || c.authMethod !== undefined || !!c.identityId ||
-    !!c.proxyProfileId || !!c.proxyConfig || !!c.hostChain || !!c.startupCommand || c.legacyAlgorithms !== undefined || c.skipEcdsaHostKey !== undefined || c.algorithms !== undefined || c.backspaceBehavior !== undefined ||
+    !!c.proxyProfileId || !!c.proxyConfig || !!c.hostChain || !!c.startupCommand || c.startupCommandRunMode !== undefined || c.legacyAlgorithms !== undefined || c.skipEcdsaHostKey !== undefined || c.algorithms !== undefined || c.backspaceBehavior !== undefined ||
     (c.environmentVariables && c.environmentVariables.length > 0) ||
     c.moshEnabled !== undefined || !!c.moshServerPath ||
     c.etEnabled !== undefined || c.etPort !== undefined ||
     (c.identityFilePaths && c.identityFilePaths.length > 0);
-  const hasTelnetFields = (c: Partial<GroupConfig>) =>
-    c.telnetPort !== undefined || !!c.telnetUsername || !!c.telnetPassword || c.telnetEnabled === true;
 
   const [sshEnabled, setSshEnabled] = useState(() => hasSshFields(config || {}));
-  const [telnetEnabled, setTelnetEnabled] = useState(() => hasTelnetFields(config || {}));
+  const [telnetEnabled, setTelnetEnabled] = useState(() => hasGroupTelnetFields(config || {}));
 
   // Sub-panel state
   const [activeSubPanel, setActiveSubPanel] = useState<SubPanel>("none");
@@ -191,6 +195,7 @@ const GroupDetailsPanel: React.FC<GroupDetailsPanelPropsWithResize> = ({
       delete next.deviceType;
       delete next.agentForwarding;
       delete next.startupCommand;
+      delete next.startupCommandRunMode;
       delete next.legacyAlgorithms;
       delete next.skipEcdsaHostKey;
       delete next.algorithms;
@@ -223,18 +228,12 @@ const GroupDetailsPanel: React.FC<GroupDetailsPanelPropsWithResize> = ({
 
   // Proxy helpers
   const updateProxyConfig = useCallback(
-    (field: keyof ProxyConfig, value: string | number) => {
+    (field: keyof ProxyConfig, value: ProxyConfig[keyof ProxyConfig]) => {
       setForm((prev) => {
         const { proxyProfileId: _proxyProfileId, ...rest } = prev;
         return {
           ...rest,
-          proxyConfig: {
-            type: prev.proxyConfig?.type || "http",
-            host: prev.proxyConfig?.host || "",
-            port: prev.proxyConfig?.port || 8080,
-            ...prev.proxyConfig,
-            [field]: value,
-          },
+          proxyConfig: updateProxyConfigField(prev.proxyConfig, field, value),
         };
       });
     },
@@ -367,6 +366,10 @@ const GroupDetailsPanel: React.FC<GroupDetailsPanelPropsWithResize> = ({
     if (!parentGroup || groupConfigs.length === 0) return false;
     return !!resolveGroupDefaults(parentGroup, groupConfigs).skipEcdsaHostKey;
   }, [groupConfigs, parentGroup]);
+  const inheritedStartupCommandRunMode = useMemo(() => {
+    if (!parentGroup || groupConfigs.length === 0) return "paste";
+    return resolveGroupDefaults(parentGroup, groupConfigs).startupCommandRunMode ?? "paste";
+  }, [groupConfigs, parentGroup]);
   const inheritedDeviceType = useMemo(() => {
     if (!parentGroup || groupConfigs.length === 0) return undefined;
     return resolveGroupDefaults(parentGroup, groupConfigs).deviceType;
@@ -385,19 +388,31 @@ const GroupDetailsPanel: React.FC<GroupDetailsPanelPropsWithResize> = ({
       setNameError(t("vault.groups.errors.invalidChars"));
       return;
     }
-    const normalizedProxyConfig = normalizeManualProxyConfig(form.proxyConfig);
-    if (normalizedProxyConfig && !isCompleteProxyConfig(normalizedProxyConfig)) {
-      toast.error(
-        normalizedProxyConfig.host ? t("proxyProfiles.error.port") : t("hostDetails.proxyPanel.error.required"),
-      );
+    const proxySave = sshEnabled
+      ? prepareProxyConfigForSave({
+        proxyConfig: form.proxyConfig,
+        proxyProfileId: form.proxyProfileId,
+        proxyProfiles,
+        identities,
+      })
+      : null;
+    if (proxySave?.error) {
+      const messageKey = proxySave.error === "port"
+        ? "proxyProfiles.error.port"
+        : proxySave.error === "required"
+          ? "hostDetails.proxyPanel.error.required"
+          : proxySave.error === "missingSaved"
+            ? "hostDetails.proxyPanel.missingSaved"
+            : proxySave.error === "missingIdentity"
+              ? "hostDetails.proxyPanel.missingIdentity"
+              : proxySave.error === "incompleteIdentity"
+                ? "hostDetails.proxyPanel.incompleteIdentity"
+                : "hostDetails.proxyPanel.unreadableIdentity";
+      toast.error(t(messageKey));
       setActiveSubPanel("proxy");
       return;
     }
-    if (sshEnabled && hasMissingProxyProfile) {
-      toast.error(t("hostDetails.proxyPanel.missingSaved"));
-      setActiveSubPanel("proxy");
-      return;
-    }
+    const normalizedProxyConfig = proxySave?.normalizedProxyConfig;
     setNameError(null);
 
     const newPath = parentGroup
@@ -420,6 +435,7 @@ const GroupDetailsPanel: React.FC<GroupDetailsPanelPropsWithResize> = ({
         ...(form.deviceType !== undefined && { deviceType: form.deviceType }),
         ...(form.agentForwarding !== undefined && { agentForwarding: form.agentForwarding }),
         ...(form.startupCommand !== undefined && { startupCommand: form.startupCommand }),
+        ...(form.startupCommandRunMode !== undefined && { startupCommandRunMode: form.startupCommandRunMode }),
         ...(form.legacyAlgorithms !== undefined && { legacyAlgorithms: form.legacyAlgorithms }),
         ...(form.skipEcdsaHostKey !== undefined && { skipEcdsaHostKey: form.skipEcdsaHostKey }),
         ...(form.algorithms !== undefined && { algorithms: form.algorithms }),
@@ -468,6 +484,7 @@ const GroupDetailsPanel: React.FC<GroupDetailsPanelPropsWithResize> = ({
       <ProxyPanel
         proxyConfig={form.proxyConfig}
         proxyProfiles={proxyProfiles}
+        identities={identities}
         selectedProxyProfileId={form.proxyProfileId}
         onUpdateProxy={updateProxyConfig}
         onSelectProxyProfile={selectProxyProfile}
@@ -622,6 +639,7 @@ const GroupDetailsPanel: React.FC<GroupDetailsPanelPropsWithResize> = ({
           setNewKeyFilePath={setNewKeyFilePath}
           inheritedLegacyAlgorithms={inheritedLegacyAlgorithms}
           inheritedSkipEcdsaHostKey={inheritedSkipEcdsaHostKey}
+          inheritedStartupCommandRunMode={inheritedStartupCommandRunMode}
           showAlgorithmOverrides={showAlgorithmOverrides}
           setShowAlgorithmOverrides={setShowAlgorithmOverrides}
           inheritedAlgorithmOverrides={inheritedAlgorithmOverrides}
@@ -700,7 +718,7 @@ const GroupDetailsPanel: React.FC<GroupDetailsPanelPropsWithResize> = ({
             <Input
               placeholder={t("hostDetails.username.placeholder")}
               value={form.telnetUsername || ""}
-              onChange={(e) => update("telnetUsername", e.target.value || undefined)}
+              onChange={(e) => update("telnetUsername", e.target.value)}
               className="h-10"
             />
             <div className="relative">
@@ -708,7 +726,7 @@ const GroupDetailsPanel: React.FC<GroupDetailsPanelPropsWithResize> = ({
                 placeholder={t("hostDetails.password.placeholder")}
                 type={showTelnetPassword ? "text" : "password"}
                 value={form.telnetPassword || ""}
-                onChange={(e) => update("telnetPassword", e.target.value || undefined)}
+                onChange={(e) => update("telnetPassword", e.target.value)}
                 className="h-10 pr-10"
               />
               <button

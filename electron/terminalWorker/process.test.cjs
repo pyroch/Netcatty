@@ -1,7 +1,9 @@
 const assert = require("node:assert/strict");
+const crypto = require("node:crypto");
 const test = require("node:test");
 
 const {
+  createZmodemDownloadDirectorySelector,
   createZmodemUploadFileSelector,
   normalizeParentPortMessage,
 } = require("./process.cjs");
@@ -34,6 +36,10 @@ test("normalizeParentPortMessage unwraps Electron utility process MessageEvent d
   );
 });
 
+test("terminal worker installs DH compatibility before SSH bridges load", () => {
+  assert.equal(crypto.createDiffieHellmanGroup.__boringSslDhCompat, true);
+});
+
 test("ZMODEM upload selector resolves dialog results delivered as MessageEvent data", async () => {
   const parentPort = createParentPort();
   const selectUploadFiles = createZmodemUploadFileSelector(parentPort, {
@@ -58,5 +64,32 @@ test("ZMODEM upload selector resolves dialog results delivered as MessageEvent d
   assert.deepEqual(await promise, {
     canceled: false,
     filePaths: ["/tmp/upload.txt"],
+  });
+});
+
+test("ZMODEM download selector resolves directory dialog results delivered as MessageEvent data", async () => {
+  const parentPort = createParentPort();
+  const selectDownloadDirectory = createZmodemDownloadDirectorySelector(parentPort, {
+    randomUUID: () => "download-dialog-1",
+  });
+
+  const promise = selectDownloadDirectory(7);
+  assert.deepEqual(parentPort.messages, [{
+    kind: "zmodem-download-dialog",
+    requestId: "download-dialog-1",
+    webContentsId: 7,
+  }]);
+
+  parentPort.emitMessage({
+    data: {
+      kind: "zmodem-download-dialog-result",
+      requestId: "download-dialog-1",
+      result: { canceled: false, filePaths: ["/tmp/downloads"] },
+    },
+  });
+
+  assert.deepEqual(await promise, {
+    canceled: false,
+    filePaths: ["/tmp/downloads"],
   });
 });
